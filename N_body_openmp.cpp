@@ -5,6 +5,7 @@
 #include <random>
 #include "vector.h"
 #include "body.h"
+#include <omp.h>
 #include <chrono>
 
 #define KAPPA 6.673e-11
@@ -47,7 +48,7 @@ int main(int argc, char* argv[])
     {
         return 1;
     }
-    auto N = std::stoi(argv[1]);
+    int N = std::stoi(argv[1]);
     Body* bodies = new Body[N];
     Body* bodies_new = new Body[N];  
 
@@ -69,29 +70,43 @@ int main(int argc, char* argv[])
         print_states(N, bodies);
         fflush(stdout);
     }
-
+    
     auto time_start = std::chrono::steady_clock::now();
 
-    for (int iter = 0; iter < ITERS; ++iter)
+    #pragma omp parallel
     {
-        for (int i = 0; i < N; ++i)
+        int p = omp_get_thread_num();
+        int procs = omp_get_num_threads();
+
+        for (int iter = 0; iter < ITERS; ++iter)
         {
-            Vector accel_sum = Vector();
-            for (int j = 0; j < N; ++j)
-            {   
-                if (i != j)
-                {
-                    accel_sum += acceleration(bodies[i], bodies[j]);
+
+            for (int i = p; i < N; i += procs)
+            {
+                Vector accel_sum = Vector();
+                for (int j = 0; j < N; ++j)
+                {   
+                    if (i != j)
+                    {
+                        accel_sum += acceleration(bodies[i], bodies[j]);
+                    }
                 }
+
+                bodies[i].pos += bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
+                bodies[i].vel += accel_sum * DELTA_T;
             }
 
-            bodies[i].pos += bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
-            bodies[i].vel += accel_sum * DELTA_T;
-        }
+            #pragma omp barrier
 
-        Body* tmp = bodies_new;
-        bodies_new = bodies;
-        bodies = tmp;
+            #pragma omp master
+            {
+                Body* tmp = bodies_new;
+                bodies_new = bodies;
+                bodies = tmp;
+            }
+
+            #pragma omp barrier
+        }
     }
 
     auto time_end = std::chrono::steady_clock::now();
