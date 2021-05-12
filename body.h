@@ -2,9 +2,8 @@
 
 #include "vector.h"
 
-class Body
+struct Body
 {
-    public:
     double m = 1.0;
     Vector pos = Vector();
     Vector vel = Vector();

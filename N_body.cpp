@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
 
     for (int iter = 0; iter < ITERS; ++iter)
     {
+
         for (int i = 0; i < N; ++i)
         {
             Vector accel_sum = Vector();
@@ -85,8 +86,8 @@ int main(int argc, char* argv[])
                 }
             }
 
-            bodies[i].pos += bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
-            bodies[i].vel += accel_sum * DELTA_T;
+            bodies_new[i].pos = bodies[i].pos + bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
+            bodies_new[i].vel = bodies[i].vel + accel_sum * DELTA_T;
         }
 
         Body* tmp = bodies_new;
@@ -102,3 +103,8 @@ int main(int argc, char* argv[])
 
     printf("Required time: %lfs\n", time);
 }
+
+/*
+g++ N_body.cpp -o N_body
+srun --ntasks=1 --nodes=1 --reservation=fri --mpi=pmix N_body 3
+*/

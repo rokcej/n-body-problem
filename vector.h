@@ -1,8 +1,7 @@
 #pragma once
 
-class Vector
+struct Vector
 {
-    public:
     double x = 0.0, y = 0.0, z = 0.0;
 
     Vector() {}

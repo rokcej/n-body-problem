@@ -92,8 +92,8 @@ int main(int argc, char* argv[])
                     }
                 }
 
-                bodies[i].pos += bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
-                bodies[i].vel += accel_sum * DELTA_T;
+                bodies_new[i].pos = bodies[i].pos + bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
+                bodies_new[i].vel = bodies[i].vel + accel_sum * DELTA_T;
             }
 
             #pragma omp barrier
