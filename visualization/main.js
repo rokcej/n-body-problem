@@ -1,72 +1,15 @@
 "use strict";
 
+// Libraries
+import * as WEBGL from "./webgl.js"
 const GLM = glMatrix;
 
-var vertexShaderSource = `#version 300 es
-
-// an attribute is an input (in) to a vertex shader.
-// It will receive data from a buffer
-in vec4 a_position;
-uniform mat4 uPVM;
-
-
-// all shaders have a main function
-void main() {
-
-	// gl_Position is a special variable a vertex shader
-	// is responsible for setting
-	gl_Position = uPVM * a_position;
-}
-`;
-
-var fragmentShaderSource = `#version 300 es
-
-// fragment shaders don't have a default precision so we need
-// to pick one. highp is a good default. It means "high precision"
-precision highp float;
-
-// we need to declare an output for the fragment shader
-out vec4 outColor;
-
-void main() {
-	// Just set the output to a constant redish-purple
-	outColor = vec4(1, 0, 0.5, 1);
-}
-`;
-
-function createShader(gl, type, source) {
-	var shader = gl.createShader(type);
-	gl.shaderSource(shader, source);
-	gl.compileShader(shader);
-	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	if (success) {
-		return shader;
-	}
-
-	console.log(gl.getShaderInfoLog(shader));  // eslint-disable-line
-	gl.deleteShader(shader);
-	return undefined;
-}
-
-function createProgram(gl, vertexShader, fragmentShader) {
-	var program = gl.createProgram();
-	gl.attachShader(program, vertexShader);
-	gl.attachShader(program, fragmentShader);
-	gl.linkProgram(program);
-	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-	if (success) {
-		return program;
-	}
-
-	console.log(gl.getProgramInfoLog(program));  // eslint-disable-line
-	gl.deleteProgram(program);
-	return undefined;
-}
 
 class App {
 	constructor(canvas) {
+		// Create global reference
 		window.app = this;
-
+		// Create WebGL2 context
 		this.canvas = canvas;
 		this.gl = canvas.getContext("webgl2");
 		if (!this.gl) {
@@ -74,49 +17,55 @@ class App {
 			return;
 		}
 
-		let vertexShader = createShader(this.gl, this.gl.VERTEX_SHADER, vertexShaderSource);
-		let fragmentShader = createShader(this.gl, this.gl.FRAGMENT_SHADER, fragmentShaderSource);
-
-		this.program = createProgram(this.gl, vertexShader, fragmentShader);
-
-		let posLocation = this.gl.getAttribLocation(this.program, "a_position");
-
-		let posBuffer = this.gl.createBuffer();
-		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, posBuffer);
-
-		var positions = [
-			0, 0, 0,
-			0, 0.5, 0,
-			0.7, 0, 0,
-			0.7, 0.5, 0,
-			0, 0.5, 0,
-			0.7, 0,	0
-		];
-		this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
-
-		this.vao = this.gl.createVertexArray();
-		this.gl.bindVertexArray(this.vao);
-		this.gl.enableVertexAttribArray(posLocation);
-
-		this.gl.vertexAttribPointer(posLocation, 3, this.gl.FLOAT, false, 0, 0);
-
-		this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
-
-
+		// Attributes
+		this.fps = {
+			value: 0,
+			count: 0,
+			lastUpdated: 0,
+			span: document.getElementById("fps")
+		}
 		this.camera = {
+			r: 2.0, // Radius
+			fov: deg2rad(90.0), // Field of view
 			rot: GLM.vec2.fromValues(0.5 * Math.PI, 0.5 * Math.PI),
-			r: 1,
-			aspect: 16 / 9,
-			fov: Math.PI / 2,
+			aspect: this.canvas.width / this.canvas.height,
 			projMat: GLM.mat4.create()
 		}
 		this.mouse = {
-			x: 0, y: 0,
+			dragSpeed: 0.005, // Dragging sensitivity
+			scrollSpeed: 1.05, // Scrolling sensitivity
+			xPrev: 0,
+			yPrev: 0,
 			dragging: false
 		}
+
+		// Setup
+		this.resize();
+		this.initEvents();
+
+		// Read shader source code
+		readFiles(["shaders/sprite.vert", "shaders/sprite.frag"]).then(contents => {
+			// Compile program
+			const [vsSource, fsSource] = contents;
+			const vs = WEBGL.createShader(this.gl, this.gl.VERTEX_SHADER, vsSource);
+			const fs = WEBGL.createShader(this.gl, this.gl.FRAGMENT_SHADER, fsSource);
+
+			this.prog = WEBGL.createProgram(this.gl, vs, fs);
+			this.uniforms = WEBGL.getUniforms(this.gl, this.prog);
+			this.attribs = WEBGL.getAttributes(this.gl, this.prog);
+
+			// Initialize scene geometry
+			this.initData();
+
+			// Start animation
+			window.requestAnimationFrame(() => { this.update(); });
+		});
+	}
+
+	initEvents() {
 		this.canvas.addEventListener("mousedown", (event) => {
-			this.mouse.x = event.clientX;
-			this.mouse.y = event.clientY;
+			this.mouse.xPrev = event.clientX;
+			this.mouse.yPrev = event.clientY;
 			this.mouse.dragging = true;
 		});
 		this.canvas.addEventListener("mouseup", (event) => {
@@ -125,13 +74,13 @@ class App {
 		this.canvas.addEventListener("mousemove", (event) => {
 			if (this.mouse.dragging) {
 				let x = event.clientX, y = event.clientY;
-				let dx = x - this.mouse.x;
-				let dy = y - this.mouse.y;
-				this.mouse.x = event.clientX;
-				this.mouse.y = event.clientY;
+				let dx = x - this.mouse.xPrev;
+				let dy = y - this.mouse.yPrev;
+				this.mouse.xPrev = x;
+				this.mouse.yPrev = y;
 
-				this.camera.rot[0] += dx * 0.005;
-				this.camera.rot[1] -= dy * 0.005;
+				this.camera.rot[0] += dx * this.mouse.dragSpeed;
+				this.camera.rot[1] -= dy * this.mouse.dragSpeed;
 
 				if (this.camera.rot[1] > Math.PI)
 					this.camera.rot[1] = Math.PI
@@ -140,53 +89,70 @@ class App {
 			}
 		});
 		this.canvas.addEventListener("wheel", (event) => {
-			const factor = 1.05;
-			if (event.deltaY < 0) {
-				this.camera.r /= factor;
-			} else if (event.deltaY > 0) {
-				this.camera.r *= factor;
-			}
+			if (event.deltaY > 0)
+				this.camera.r *= this.mouse.scrollSpeed;
+			else if (event.deltaY < 0)
+				this.camera.r /= this.mouse.scrollSpeed;
 		});
-		this.resize();
-		window.addEventListener("resize", () => { this.resize(); });
+		window.addEventListener("resize", () => {
+			this.resize();
+		});
+	}
 
-		window.requestAnimationFrame(() => { this.update(); });
+	initData() {
+		let vbo = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vbo);
+
+		var positions = [
+			-0.5, -0.5, -0.5,
+			-0.5, -0.5, +0.5,
+			-0.5, +0.5, -0.5,
+			-0.5, +0.5, +0.5,
+			+0.5, -0.5, -0.5,
+			+0.5, -0.5, +0.5,
+			+0.5, +0.5, -0.5,
+			+0.5, +0.5, +0.5,
+		];
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
+
+		this.vao = this.gl.createVertexArray();
+		this.gl.bindVertexArray(this.vao);
+		this.gl.enableVertexAttribArray(this.attribs["aPos"]);
+		this.gl.vertexAttribPointer(this.attribs["aPos"], 3, this.gl.FLOAT, false, 0, 0);
 	}
 
 	update() {
-		this.gl.clearColor(0, 0, 0, 255);
+		// Time
+		let t = performance.now() * 0.001;
+		// FPS
+		++this.fps.count;
+		if (t - this.fps.lastUpdated >= 1.0) {
+			this.fps.value = this.fps.count / (t - this.fps.lastUpdated);
+			this.fps.span.innerHTML = Math.round(this.fps.value);
+			this.fps.count = 0;
+			this.fps.lastUpdated = t;
+		}
+
+		// Draw
+		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	
-		this.gl.useProgram(this.program)
+		this.gl.useProgram(this.prog)
 		this.gl.bindVertexArray(this.vao);
-	
-		let t = performance.now()/1000;
 
-		// TODO don't compute every frame
-		//const project = GLM.mat4.create();
-    	//GLM.mat4.perspective(project, this.camera.fov, this.camera.aspect, 0.1, 1000);
-		const project = this.camera.projMat;
-
-
-		const view = GLM.mat4.create();
-		GLM.mat4.lookAt(view, GLM.vec3.fromValues(
-				this.camera.r * Math.cos(this.camera.rot[0])*Math.sin(this.camera.rot[1]),
+		let viewMat = GLM.mat4.create();
+		GLM.mat4.lookAt(viewMat, GLM.vec3.fromValues(
+				this.camera.r * Math.cos(this.camera.rot[0]) * Math.sin(this.camera.rot[1]),
 				this.camera.r * Math.cos(this.camera.rot[1]),
-				this.camera.r * Math.sin(this.camera.rot[0])*Math.sin(this.camera.rot[1])
+				this.camera.r * Math.sin(this.camera.rot[0]) * Math.sin(this.camera.rot[1])
 			), GLM.vec3.fromValues(0, 0, 0), GLM.vec3.fromValues(0, 1, 0)
 		);
 
-		const trans = GLM.mat4.create();
-		GLM.mat4.fromTranslation(trans, GLM.vec3.fromValues(0,Math.sin(t)*0.5, 0));
-
-		const pvm = GLM.mat4.create();
-		GLM.mat4.mul(pvm, project, view);
-		GLM.mat4.mul(pvm, pvm, trans);
-
-		let pvmLocation = this.gl.getUniformLocation(this.program, "uPVM");
-		this.gl.uniformMatrix4fv(pvmLocation, false, pvm)
+		this.gl.uniformMatrix4fv(this.uniforms["uPMat"], false, this.camera.projMat);
+		this.gl.uniformMatrix4fv(this.uniforms["uVMMat"], false, viewMat); // modelMat = I --> viewModelMat == viewMat
+		this.gl.uniform2f(this.uniforms["uResolution"], this.canvas.width, this.canvas.height);
 	
-		this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+		this.gl.drawArrays(this.gl.POINTS, 0, 8);
 		
 		window.requestAnimationFrame(() => { this.update(); });
 	}
@@ -203,8 +169,20 @@ class App {
 
 }
 
+
+function readFiles(urls) {
+	let contents = []
+	for (let url of urls)
+		contents.push(fetch(url).then(res => res.text()));
+	return Promise.all(contents);
+}
+
+function deg2rad(angle) {
+	return angle * Math.PI / 180.0;
+}
+
+
 document.addEventListener("DOMContentLoaded", () => {
 	const canvas = document.getElementById("canvas");
 	const app = new App(canvas);
-
 });
