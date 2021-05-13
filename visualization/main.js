@@ -82,10 +82,14 @@ class App {
 				this.camera.rot[0] += dx * this.mouse.dragSpeed;
 				this.camera.rot[1] -= dy * this.mouse.dragSpeed;
 
-				if (this.camera.rot[1] > Math.PI)
-					this.camera.rot[1] = Math.PI
-				else if (this.camera.rot[1] < 0)
-					this.camera.rot[1] = 0;
+				// Constrain horizontal rotation to [0, 2*PI)
+				this.camera.rot[0] = (this.camera.rot[0] + 2.0 * Math.PI) % (2.0 * Math.PI);
+				// Constrain vertical rotation to (0, PI)
+				const eps = 0.001; // Small offset to prevent lookAt errors
+				if (this.camera.rot[1] > Math.PI - eps)
+					this.camera.rot[1] = Math.PI - eps
+				else if (this.camera.rot[1] < eps)
+					this.camera.rot[1] = eps;
 			}
 		});
 		this.canvas.addEventListener("wheel", (event) => {
