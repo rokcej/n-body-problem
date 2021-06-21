@@ -28,10 +28,12 @@ void read_input(int *N, Body **bodies, Body **bodies_new) {
     in_file.close();
 }
 
-void write_output(int N, int FRAMES, Vector *log) {
+void write_output(int N, int FRAMES, Vector *log, Body *bodies) {
 	std::ofstream out_file;
     out_file.open("data/output.txt");
-    out_file << FRAMES << "\n" << N << "\n";
+    out_file << N << "\n" << FRAMES << "\n";
+	for (int b = 0; b < N; ++b)
+		out_file << bodies[b].m << "\n";
     for (int s = 0; s < FRAMES; ++s) {
         for (int b = 0; b < N; ++b) {
             int idx = (s * N + b) * 2;

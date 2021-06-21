@@ -4,44 +4,16 @@
 #include <math.h>
 #include <string>
 #include <random>
-#include "vector.h"
-#include "body.h"
 #include <chrono>
 #include <vector>
 
-#define KAPPA 6.673e-11
-#define EPS 1e-14
-#define ITERS 1000
-#define DELTA_T 0.01
-#define DEBUG false
+#include "vector.h"
+#include "body.h"
+#include "util.h"
 
-Vector force(Body b_1, Body b_2)
-{
-    Vector diff = b_1.pos - b_2.pos;
-    double dist = diff.length() + EPS;
-
-    return diff * ((b_1.m * b_2.m) / (dist * dist * dist) * -KAPPA);
-}
-
-Vector acceleration(Body b_1, Body b_2)
-{
-    Vector diff = b_1.pos - b_2.pos;
-    double dist = diff.length() + EPS;
-
-    return diff * ((b_2.m) / (dist * dist * dist) * -KAPPA);
-}
-
-void print_states(double N_bodies, Body* bodies)
-{
-    for (int i = 0; i < N_bodies; ++i)
-    {
-        printf("Body %d\n", i);
-        printf("Current position: ");
-        bodies[i].pos.print_vector();
-        printf("Current velocity: ");
-        bodies[i].vel.print_vector();
-    }
-}
+#define ITERS 10000000
+#define DELTA_T 1.0
+#define FRAMES 2000
 
 void get_accel_sums(std::vector<Vector> &my_accel_sums, Body* my_bodies, Body* my_bodies_othr, int m, int offset)
 {
@@ -51,7 +23,7 @@ void get_accel_sums(std::vector<Vector> &my_accel_sums, Body* my_bodies, Body* m
         {   
             if (i != j || offset != 0)
             {
-                my_accel_sums[i] += acceleration(my_bodies[i], my_bodies_othr[j]);
+                my_accel_sums[i] += my_bodies[i].acceleration(my_bodies_othr[j]);
             }
         }
     }
@@ -59,25 +31,16 @@ void get_accel_sums(std::vector<Vector> &my_accel_sums, Body* my_bodies, Body* m
 
 int main(int argc, char* argv[])
 {
-    int         myid, procs;
-   	Body*       bodies = nullptr;
-    Body*       bodies_new = nullptr;
+    int     myid, procs;
+    int     N;
+   	Body*   bodies = nullptr;
+    Body*   bodies_new = nullptr;
+    Vector *log = nullptr;
 
     // Init
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
-
-    if (argc < 2)
-    {
-        return 1;
-    }
-    int N = std::stoi(argv[1]);
-
-    if (N % procs != 0)
-    {
-        printf("Number of objects has to be divisible by the number of tasks\n");
-    }
     
     MPI_Datatype	vector_input_type[1] = {MPI_DOUBLE};                
 	int				vector_blocks[1] = {3};
@@ -97,26 +60,12 @@ int main(int argc, char* argv[])
 
     if (myid == 0)
     {
-        bodies = new Body[N];
-        bodies_new = new Body[N];
+        read_input(&N, &bodies, &bodies_new);
 
-        std::random_device rd;
-        std::mt19937 gen(165432);
-        std::uniform_real_distribution<double> distrib_mass(1.0e24, 1.0e30); // from earth mass to sun mass
-        std::uniform_real_distribution<double> distrib_pos(-1.5e10, 1.5e10);
-        std::uniform_real_distribution<double> distrib_vel(0.0, 0.0);
-        
-        for (int i = 0; i < N; ++i)
-        {
-            bodies[i].m = distrib_mass(gen);
-            bodies[i].pos = Vector(distrib_pos(gen), distrib_pos(gen), distrib_pos(gen));
-            bodies[i].vel = Vector(distrib_vel(gen), distrib_vel(gen), distrib_vel(gen));
-        }
+        Vector* log = new Vector[FRAMES * N * 2];
 
-        if (DEBUG && myid == 0)
-        {
-            print_states(N, bodies);
-            fflush(stdout);
+        if (N % procs != 0) {
+            printf("Number of objects has to be divisible by the number of tasks\n");
         }
     }
 
@@ -124,6 +73,7 @@ int main(int argc, char* argv[])
     Body* my_bodies = new Body[m];
     Body* my_bodies_recv = new Body[m];
     Body* my_bodies_new = new Body[m];
+    Vector* my_log = new Vector[m * FRAMES * 2];
 
     MPI_Scatter(bodies, m, type_body, 
 				my_bodies, m, type_body, 
@@ -131,6 +81,7 @@ int main(int argc, char* argv[])
 
     auto time_start = std::chrono::steady_clock::now();
 
+    int frame = 0;
     for (int iter = 0; iter < ITERS; ++iter)
     {
         std::vector<Vector> my_accel_sums(m);
@@ -159,6 +110,14 @@ int main(int argc, char* argv[])
             my_bodies_new[i].vel = my_bodies[i].vel + my_accel_sums[i] * DELTA_T;
         }
 
+        if (iter % (ITERS / FRAMES) == 0) {
+            for (int i = 0; i < m; ++i) {
+                my_log[(i * FRAMES + frame) * 2 + 0] = Vector(my_bodies_new[i].pos);
+                my_log[(i * FRAMES + frame) * 2 + 1] = Vector(my_bodies_new[i].vel);
+            }
+            ++frame;
+        }
+
         Body* tmp = my_bodies_new;
         my_bodies_new = my_bodies;
         my_bodies = tmp;
@@ -170,12 +129,17 @@ int main(int argc, char* argv[])
 			   bodies, m, type_body, 
 			   0, MPI_COMM_WORLD);
 
+    MPI_Gather(my_log, m * FRAMES * 2, type_vector,
+               log, m * FRAMES * 2, type_vector,
+               0, MPI_COMM_WORLD);
+
     auto time_end = std::chrono::steady_clock::now();
     double time = std::chrono::duration<double>(time_end - time_start).count();
 
     if (myid == 0)
     {
-        if (DEBUG) print_states(N, bodies);
+        write_output(N, FRAMES, log, bodies);
+
         printf("Required time: %lfs\n", time);
     }
 
@@ -186,8 +150,3 @@ int main(int argc, char* argv[])
 
     return 0;
 }
-
-/*
-mpic++ N_body_mpi.cpp -o N_body_mpi
-srun --ntasks=16 --nodes=1 --reservation=fri --mpi=pmix N_body_mpi 480
-*/

@@ -8,7 +8,7 @@
 #include "util.h"
 
 #define ITERS 10000000
-#define DELTA_T 2.0
+#define DELTA_T 1.0
 #define FRAMES 2000
 
 int main(int argc, char* argv[])
@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
     Body *bodies, *bodies_new;
     read_input(&N, &bodies, &bodies_new);
 
-    Vector* log = new Vector[FRAMES * N * 2];
+    Vector* log = new Vector[N * FRAMES * 2];
 
     auto time_start = std::chrono::steady_clock::now();
 
@@ -42,8 +42,8 @@ int main(int argc, char* argv[])
 
         if (iter % (ITERS / FRAMES) == 0) {
             for (int i = 0; i < N; ++i) {
-                log[(frame * N + i) * 2 + 0] = Vector(bodies_new[i].pos);
-                log[(frame * N + i) * 2 + 1] = Vector(bodies_new[i].vel);
+                log[(i * FRAMES + frame) * 2 + 0] = Vector(bodies_new[i].pos);
+                log[(i * FRAMES + frame) * 2 + 1] = Vector(bodies_new[i].vel);
             }
             ++frame;
         }
@@ -56,12 +56,7 @@ int main(int argc, char* argv[])
     auto time_end = std::chrono::steady_clock::now();
     double time = std::chrono::duration<double>(time_end - time_start).count();
 
-    write_output(N, FRAMES, log);
+    write_output(N, FRAMES, log, bodies);
 
     printf("Required time: %lfs\n", time);
 }
-
-/*
-g++ N_body.cpp -o N_body
-srun --ntasks=1 --nodes=1 --reservation=fri --mpi=pmix N_body 3
-*/

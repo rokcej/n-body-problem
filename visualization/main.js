@@ -41,14 +41,19 @@ class App {
 		this.numSteps = null;
 		this.numBodies = null;
 		this.step = 0;
+		this.drawOrbits = true;
 
 		// Setup
 		this.resize();
 		this.initEvents();
 
 		// Read shader source code and data
-		readFiles(["shaders/sprite.vert", "shaders/sprite.frag", "../data/output.txt"]).then(contents => {
-			const [vsSource, fsSource, dataText] = contents;
+		readFiles([
+				"shaders/sprite.vert", "shaders/sprite.frag",
+				"shaders/line.vert", "shaders/line.frag",
+				"../data/output.txt"
+			]).then(contents => {
+			const [vsSource, fsSource, vsLineSrc, fsLineSrc, dataText] = contents;
 
 			// Compile program
 			const vs = WEBGL.createShader(this.gl, this.gl.VERTEX_SHADER, vsSource);
@@ -57,6 +62,14 @@ class App {
 			this.prog = WEBGL.createProgram(this.gl, vs, fs);
 			this.uniforms = WEBGL.getUniforms(this.gl, this.prog);
 			this.attribs = WEBGL.getAttributes(this.gl, this.prog);
+
+			// Compile line program
+			const vsLine = WEBGL.createShader(this.gl, this.gl.VERTEX_SHADER, vsLineSrc);
+			const fsLine = WEBGL.createShader(this.gl, this.gl.FRAGMENT_SHADER, fsLineSrc);
+
+			this.progLine = WEBGL.createProgram(this.gl, vsLine, fsLine);
+			this.uniformsLine = WEBGL.getUniforms(this.gl, this.progLine);
+			this.attribsLine = WEBGL.getAttributes(this.gl, this.progLine);
 
 			// Initialize scene geometry
 			this.initData(dataText);
@@ -108,44 +121,65 @@ class App {
 	}
 
 	initData(dataText) {
-		let lines = dataText.split("\n");
-		this.numSteps = parseInt(lines[0]);
-		this.numBodies = parseInt(lines[1]);
-
+		let lines = dataText.split(/\r+\n/);
+		this.numBodies = parseInt(lines[0]);
+		this.numSteps = parseInt(lines[1]);
 
 		console.log(this.numSteps);
 		console.log(this.numBodies);
 		console.log(lines);
 
-		let positions = new Float32Array(this.numSteps * this.numBodies * 3);
-		for (let s = 0; s < this.numSteps; ++s) {
-			for (let b = 0; b < this.numBodies; ++b) {
-				let idx = s * this.numBodies + b;
-				let [x, y, z] = lines[2 + idx].split(" ").map(x => parseFloat(x));
-				positions[idx * 3 + 0] = x * 1e-11
-				positions[idx * 3 + 1] = y * 1e-11
-				positions[idx * 3 + 2] = z * 1e-11
+		let maxPos = 0;
+		let maxMass = 0;
+
+		let positions = new Float32Array(this.numBodies * this.numSteps * 4);
+		let orbits = new Float32Array(this.numSteps * this.numBodies * 3)
+		for (let b = 0; b < this.numBodies; ++b) {
+			for (let s = 0; s < this.numSteps; ++s) {
+				let idx = b * this.numSteps + s;
+				let idxRev = s * this.numBodies + b;
+				let [x, y, z] = lines[2 + this.numBodies + idx].split(" ").map(x => parseFloat(x)); // Position
+				let m = parseFloat(lines[2 + b]); // Mass
+				positions[idxRev * 4 + 0] = x;
+				positions[idxRev * 4 + 1] = y;
+				positions[idxRev * 4 + 2] = z;
+				positions[idxRev * 4 + 3] = m;
+
+				orbits[idx * 3 + 0] = x;
+				orbits[idx * 3 + 1] = y;
+				orbits[idx * 3 + 2] = z;
+
+				maxPos = Math.max(maxPos, Math.abs(x), Math.abs(y), Math.abs(z));
+				maxMass = Math.max(maxMass, m);
 			}
 		}
 
+		// Normalize data
+		for (let i = 0; i < positions.length; ++i) {
+			if (i % 4 == 3) // Mass
+				positions[i] = 1.5 * (0.9 * positions[i] / maxMass + 0.1);
+			else // Position
+				positions[i] *= 1.0 / maxPos;
+		}
+		for (let i = 0; i < orbits.length; ++i)
+			orbits[i] *= 1.0 / maxPos;
+
+
 		let vbo = this.gl.createBuffer();
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vbo);
-
-		// let positions = new Float32Array([
-		// 	-0.5, -0.5, -0.5,
-		// 	-0.5, -0.5, +0.5,
-		// 	-0.5, +0.5, -0.5,
-		// 	-0.5, +0.5, +0.5,
-		// 	+0.5, -0.5, -0.5,
-		// 	+0.5, -0.5, +0.5,
-		// 	+0.5, +0.5, -0.5,
-		// 	+0.5, +0.5, +0.5,
-		// ]);
-
 		this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
 
 		this.vao = this.gl.createVertexArray();
 		this.gl.bindVertexArray(this.vao);
+		this.gl.enableVertexAttribArray(this.attribs["aPosSize"]);
+		this.gl.vertexAttribPointer(this.attribs["aPosSize"], 4, this.gl.FLOAT, false, 0, 0);
+
+		let vboOrbits = this.gl.createBuffer();
+		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vboOrbits);
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, orbits, this.gl.STATIC_DRAW);
+
+		this.vaoOrbits = this.gl.createVertexArray();
+		this.gl.bindVertexArray(this.vaoOrbits);
 		this.gl.enableVertexAttribArray(this.attribs["aPos"]);
 		this.gl.vertexAttribPointer(this.attribs["aPos"], 3, this.gl.FLOAT, false, 0, 0);
 	}
@@ -162,13 +196,7 @@ class App {
 			this.fps.lastUpdated = t;
 		}
 
-		// Draw
-		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-	
-		this.gl.useProgram(this.prog)
-		this.gl.bindVertexArray(this.vao);
-
+		// Uniforms
 		let viewMat = GLM.mat4.create();
 		GLM.mat4.lookAt(viewMat, GLM.vec3.fromValues(
 				this.camera.r * Math.cos(this.camera.rot[0]) * Math.sin(this.camera.rot[1]),
@@ -176,12 +204,39 @@ class App {
 				this.camera.r * Math.sin(this.camera.rot[0]) * Math.sin(this.camera.rot[1])
 			), GLM.vec3.fromValues(0, 0, 0), GLM.vec3.fromValues(0, 1, 0)
 		);
+		let pvmMat = GLM.mat4.create();
+		GLM.mat4.multiply(pvmMat, this.camera.projMat, viewMat)
+
+		// Draw
+		// this.gl.enable(this.gl.DEPTH_TEST);
+		this.gl.enable(this.gl.BLEND);
+		this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+		this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+		// Orbits
+		if (this.drawOrbits) {
+			this.gl.useProgram(this.progLine)
+			this.gl.bindVertexArray(this.vaoOrbits);
+
+			this.gl.uniformMatrix4fv(this.uniformsLine["uPVMMat"], false, pvmMat);
+		
+			for (let b = 0; b < this.numBodies; ++b)
+				this.gl.drawArrays(this.gl.LINE_STRIP, b * this.numSteps, this.step);
+		}
+
+		// Bodies		
+		this.gl.useProgram(this.prog)
+		this.gl.bindVertexArray(this.vao);
 
 		this.gl.uniformMatrix4fv(this.uniforms["uPMat"], false, this.camera.projMat);
 		this.gl.uniformMatrix4fv(this.uniforms["uVMMat"], false, viewMat); // modelMat = I --> viewModelMat == viewMat
 		this.gl.uniform2f(this.uniforms["uResolution"], this.canvas.width, this.canvas.height);
 	
 		this.gl.drawArrays(this.gl.POINTS, this.step * this.numBodies, this.numBodies);
+
+
 		this.step = (this.step + 1) % this.numSteps;
 		
 		window.requestAnimationFrame(() => { this.update(); });
