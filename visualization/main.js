@@ -42,6 +42,8 @@ class App {
 		this.numBodies = null;
 		this.step = 0;
 		this.drawOrbits = true;
+		this.relativeSize = 0.8;
+		this.absoluteSize = 1.5;
 
 		// Setup
 		this.resize();
@@ -157,7 +159,7 @@ class App {
 		// Normalize data
 		for (let i = 0; i < positions.length; ++i) {
 			if (i % 4 == 3) // Mass
-				positions[i] = 1.5 * (0.9 * positions[i] / maxMass + 0.1);
+				positions[i] *= 1.0 / maxMass;
 			else // Position
 				positions[i] *= 1.0 / maxPos;
 		}
@@ -233,6 +235,8 @@ class App {
 		this.gl.uniformMatrix4fv(this.uniforms["uPMat"], false, this.camera.projMat);
 		this.gl.uniformMatrix4fv(this.uniforms["uVMMat"], false, viewMat); // modelMat = I --> viewModelMat == viewMat
 		this.gl.uniform2f(this.uniforms["uResolution"], this.canvas.width, this.canvas.height);
+		this.gl.uniform1f(this.uniforms["uRelSize"], this.relativeSize);
+		this.gl.uniform1f(this.uniforms["uAbsSize"], this.absoluteSize);
 	
 		this.gl.drawArrays(this.gl.POINTS, this.step * this.numBodies, this.numBodies);
 
