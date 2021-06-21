@@ -23,8 +23,6 @@ void read_input(int *N, Body **bodies, Body **bodies_new) {
         (*bodies_new)[i].m = m;
         (*bodies)[i].pos = Vector(pos_x, pos_y, pos_z);
         (*bodies)[i].vel = Vector(vel_x, vel_y, vel_z);
-
-		std::cout << m << std::endl;
     }
 
     in_file.close();

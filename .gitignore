@@ -1,3 +1,4 @@
 .vscode/
 N_body*.exe
+N_body*.log
 data/output*.txt
