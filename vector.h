@@ -6,6 +6,12 @@ struct Vector
 
     Vector() {}
 
+    Vector(const Vector &v) {
+        this->x = v.x;
+        this->y = v.y;
+        this->z = v.z;
+    }
+
     Vector(double x, double y, double z)
     {
         this->x = x;

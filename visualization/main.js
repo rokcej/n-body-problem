@@ -38,15 +38,19 @@ class App {
 			yPrev: 0,
 			dragging: false
 		}
+		this.numSteps = null;
+		this.numBodies = null;
+		this.step = 0;
 
 		// Setup
 		this.resize();
 		this.initEvents();
 
-		// Read shader source code
-		readFiles(["shaders/sprite.vert", "shaders/sprite.frag"]).then(contents => {
+		// Read shader source code and data
+		readFiles(["shaders/sprite.vert", "shaders/sprite.frag", "../data/output.txt"]).then(contents => {
+			const [vsSource, fsSource, dataText] = contents;
+
 			// Compile program
-			const [vsSource, fsSource] = contents;
 			const vs = WEBGL.createShader(this.gl, this.gl.VERTEX_SHADER, vsSource);
 			const fs = WEBGL.createShader(this.gl, this.gl.FRAGMENT_SHADER, fsSource);
 
@@ -55,7 +59,7 @@ class App {
 			this.attribs = WEBGL.getAttributes(this.gl, this.prog);
 
 			// Initialize scene geometry
-			this.initData();
+			this.initData(dataText);
 
 			// Start animation
 			window.requestAnimationFrame(() => { this.update(); });
@@ -103,21 +107,42 @@ class App {
 		});
 	}
 
-	initData() {
+	initData(dataText) {
+		let lines = dataText.split("\n");
+		this.numSteps = parseInt(lines[0]);
+		this.numBodies = parseInt(lines[1]);
+
+
+		console.log(this.numSteps);
+		console.log(this.numBodies);
+		console.log(lines);
+
+		let positions = new Float32Array(this.numSteps * this.numBodies * 3);
+		for (let s = 0; s < this.numSteps; ++s) {
+			for (let b = 0; b < this.numBodies; ++b) {
+				let idx = s * this.numBodies + b;
+				let [x, y, z] = lines[2 + idx].split(" ").map(x => parseFloat(x));
+				positions[idx * 3 + 0] = x * 1e-11
+				positions[idx * 3 + 1] = y * 1e-11
+				positions[idx * 3 + 2] = z * 1e-11
+			}
+		}
+
 		let vbo = this.gl.createBuffer();
 		this.gl.bindBuffer(this.gl.ARRAY_BUFFER, vbo);
 
-		var positions = [
-			-0.5, -0.5, -0.5,
-			-0.5, -0.5, +0.5,
-			-0.5, +0.5, -0.5,
-			-0.5, +0.5, +0.5,
-			+0.5, -0.5, -0.5,
-			+0.5, -0.5, +0.5,
-			+0.5, +0.5, -0.5,
-			+0.5, +0.5, +0.5,
-		];
-		this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
+		// let positions = new Float32Array([
+		// 	-0.5, -0.5, -0.5,
+		// 	-0.5, -0.5, +0.5,
+		// 	-0.5, +0.5, -0.5,
+		// 	-0.5, +0.5, +0.5,
+		// 	+0.5, -0.5, -0.5,
+		// 	+0.5, -0.5, +0.5,
+		// 	+0.5, +0.5, -0.5,
+		// 	+0.5, +0.5, +0.5,
+		// ]);
+
+		this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
 
 		this.vao = this.gl.createVertexArray();
 		this.gl.bindVertexArray(this.vao);
@@ -156,7 +181,8 @@ class App {
 		this.gl.uniformMatrix4fv(this.uniforms["uVMMat"], false, viewMat); // modelMat = I --> viewModelMat == viewMat
 		this.gl.uniform2f(this.uniforms["uResolution"], this.canvas.width, this.canvas.height);
 	
-		this.gl.drawArrays(this.gl.POINTS, 0, 8);
+		this.gl.drawArrays(this.gl.POINTS, this.step * this.numBodies, this.numBodies);
+		this.step = (this.step + 1) % this.numSteps;
 		
 		window.requestAnimationFrame(() => { this.update(); });
 	}

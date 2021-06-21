@@ -5,15 +5,17 @@
 #include <random>
 #include "vector.h"
 #include "body.h"
+#include "util.h"
 #include <chrono>
 
 #define KAPPA 6.673e-11
-#define EPS 1e-14
-#define ITERS 1000
-#define DELTA_T 0.01
+#define EPS 1e-3
+#define ITERS 10000000
+#define DELTA_T 2.0
+#define FRAMES 2000
 #define DEBUG false
 
-Vector force(Body b_1, Body b_2)
+Vector force(Body &b_1, Body &b_2)
 {
     Vector diff = b_1.pos - b_2.pos;
     double dist = diff.length() + EPS;
@@ -21,7 +23,7 @@ Vector force(Body b_1, Body b_2)
     return diff * ((b_1.m * b_2.m) / (dist * dist * dist) * -KAPPA);
 }
 
-Vector acceleration(Body b_1, Body b_2)
+Vector acceleration(Body &b_1, Body &b_2)
 {
     Vector diff = b_1.pos - b_2.pos;
     double dist = diff.length() + EPS;
@@ -43,26 +45,11 @@ void print_states(double N, Body* bodies)
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2)
-    {
-        return 1;
-    }
-    auto N = std::stoi(argv[1]);
-    Body* bodies = new Body[N];
-    Body* bodies_new = new Body[N];  
+    int N;
+    Body *bodies, *bodies_new;
+    read_input(&N, &bodies, &bodies_new);
 
-    std::random_device rd;
-    std::mt19937 gen(165432);
-    std::uniform_real_distribution<double> distrib_mass(1.0e24, 1.0e30); // from earth mass to sun mass
-    std::uniform_real_distribution<double> distrib_pos(-1.5e10, 1.5e10);
-    std::uniform_real_distribution<double> distrib_vel(0.0, 0.0);
-
-    for (int i = 0; i < N; ++i)
-    {
-        bodies[i].m = distrib_mass(gen);
-        bodies[i].pos = Vector(distrib_pos(gen), distrib_pos(gen), distrib_pos(gen));
-        bodies[i].vel = Vector(distrib_vel(gen), distrib_vel(gen), distrib_vel(gen));
-    }
+    Vector* log = new Vector[FRAMES * N * 2];
 
     if (DEBUG)
     {
@@ -72,6 +59,7 @@ int main(int argc, char* argv[])
 
     auto time_start = std::chrono::steady_clock::now();
 
+    int frame = 0;
     for (int iter = 0; iter < ITERS; ++iter)
     {
 
@@ -90,6 +78,14 @@ int main(int argc, char* argv[])
             bodies_new[i].vel = bodies[i].vel + accel_sum * DELTA_T;
         }
 
+        if (iter % (ITERS / FRAMES) == 0) {
+            for (int i = 0; i < N; ++i) {
+                log[(frame * N + i) * 2 + 0] = Vector(bodies_new[i].pos);
+                log[(frame * N + i) * 2 + 1] = Vector(bodies_new[i].vel);
+            }
+            ++frame;
+        }
+
         Body* tmp = bodies_new;
         bodies_new = bodies;
         bodies = tmp;
@@ -97,6 +93,8 @@ int main(int argc, char* argv[])
 
     auto time_end = std::chrono::steady_clock::now();
     double time = std::chrono::duration<double>(time_end - time_start).count();
+
+    write_output(N, FRAMES, log);
 
     if (DEBUG)
         print_states(N, bodies);
