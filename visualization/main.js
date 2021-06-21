@@ -123,7 +123,7 @@ class App {
 	}
 
 	initData(dataText) {
-		let lines = dataText.split(/\r+\n/);
+		let lines = dataText.split("\n");
 		this.numBodies = parseInt(lines[0]);
 		this.numSteps = parseInt(lines[1]);
 

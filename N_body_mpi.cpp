@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     int     N;
    	Body*   bodies = nullptr;
     Body*   bodies_new = nullptr;
-    Vector *log = nullptr;
+    Vector* log = nullptr;
 
     // Init
     MPI_Init(&argc, &argv);
@@ -62,12 +62,14 @@ int main(int argc, char* argv[])
     {
         read_input(&N, &bodies, &bodies_new);
 
-        Vector* log = new Vector[FRAMES * N * 2];
+        log = new Vector[N * FRAMES * 2];
 
         if (N % procs != 0) {
             printf("Number of objects has to be divisible by the number of tasks\n");
         }
     }
+
+    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     int m = N / procs;
     Body* my_bodies = new Body[m];
