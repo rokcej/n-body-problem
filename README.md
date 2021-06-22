@@ -25,9 +25,9 @@ srun --ntasks=16 --nodes=1 --time=10:00 --reservation=fri --mpi=pmix N_body_mpi
 
 ## Examples
 
-* [Three body simulation](https://github.com/mb0484/N-body/visualization?data="three.txt")
-* [Solar system simulation](https://github.com/mb0484/N-body/visualization?data="solar.txt")
-* ["Galaxy" simulation](https://github.com/mb0484/N-body/visualization?data="solar.txt")
+* [Three body simulation](https://mb0484.github.io/N-body/visualization/?data="three.txt")
+* [Solar system simulation](https://mb0484.github.io/N-body/visualization/?data="solar.txt")
+* ["Galaxy" simulation](https://mb0484.github.io/N-body/visualization/?data="solar.txt")
 
 
 ## Results
