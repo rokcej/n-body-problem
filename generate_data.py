@@ -3,7 +3,7 @@ import math
 
 num_bodies = 256
 
-with open("data/input_gen.txt", "w") as f:
+with open("data/input.txt", "w") as f:
 	f.write(f"{num_bodies}\n")
 
 	for b in range(1, num_bodies):
