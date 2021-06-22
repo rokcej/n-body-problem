@@ -53,7 +53,7 @@ class App {
 		const urlParams = new URLSearchParams(window.location.search);
 		let dataset = urlParams.get("data");
 		if (!dataset)
-			dataset = "output.txt"
+			dataset = "solar.txt"
 
 		// Read shader source code and data
 		readFiles([

@@ -1,28 +1,5 @@
 # N-body
 
-## Input
-
-```
-number_of_bodies
-mass pos_x pos_y pos_z vel_x vel_y vel_z
-```
-
-## Output
-
-```
-number_of_bodies
-number_of_steps
-mass_1
-...
-mass_n
-body_1_step_1
-...
-body_1_step_m
-body_2_step_1
-...
-body_n_step_m
-```
-
 ## Implementations
 
 * Sequential
@@ -44,6 +21,14 @@ export OMPI_MCA_btl_openib_allow_ib=1
 mpic++ -O2 N_body_mpi.cpp -o N_body_mpi
 srun --ntasks=16 --nodes=1 --time=10:00 --reservation=fri --mpi=pmix N_body_mpi
 ```
+
+
+## Examples
+
+* [Three body simulation](https://github.com/mb0484/N-body/visualization?data="three.txt")
+* [Solar system simulation](https://github.com/mb0484/N-body/visualization?data="solar.txt")
+* ["Galaxy" simulation](https://github.com/mb0484/N-body/visualization?data="solar.txt")
+
 
 ## Results
 
@@ -79,3 +64,30 @@ MPI:
 	64: 10.945437s (15.9x speedup)
 	32: 13.129810s 
 	16: 20.237591s
+
+
+## Specification
+
+### Input
+
+```
+number_of_bodies
+mass pos_x pos_y pos_z vel_x vel_y vel_z
+```
+
+### Output
+
+```
+number_of_bodies
+number_of_steps
+mass_1
+...
+mass_n
+body_1_step_1
+...
+body_1_step_m
+body_2_step_1
+...
+body_n_step_m
+```
+
