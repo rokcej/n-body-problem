@@ -49,11 +49,17 @@ class App {
 		this.resize();
 		this.initEvents();
 
+		// Custom dataset
+		const urlParams = new URLSearchParams(window.location.search);
+		let dataset = urlParams.get("data");
+		if (!dataset)
+			dataset = "output.txt"
+
 		// Read shader source code and data
 		readFiles([
 				"shaders/sprite.vert", "shaders/sprite.frag",
 				"shaders/line.vert", "shaders/line.frag",
-				"../data/output.txt"
+				"../data/" + dataset
 			]).then(contents => {
 			const [vsSource, fsSource, vsLineSrc, fsLineSrc, dataText] = contents;
 
@@ -132,6 +138,7 @@ class App {
 		console.log(lines);
 
 		let maxPos = 0;
+		let avgPos = 0
 		let maxMass = 0;
 
 		let positions = new Float32Array(this.numBodies * this.numSteps * 4);
@@ -152,19 +159,21 @@ class App {
 				orbits[idx * 3 + 2] = z;
 
 				maxPos = Math.max(maxPos, Math.abs(x), Math.abs(y), Math.abs(z));
+				avgPos += (Math.abs(x) + Math.abs(y) + Math.abs(z)) / 3.0;
 				maxMass = Math.max(maxMass, m);
 			}
 		}
+		avgPos /= this.numBodies * this.numSteps;
 
 		// Normalize data
 		for (let i = 0; i < positions.length; ++i) {
 			if (i % 4 == 3) // Mass
 				positions[i] *= 1.0 / maxMass;
 			else // Position
-				positions[i] *= 1.0 / maxPos;
+				positions[i] *= 1.0 / avgPos;
 		}
 		for (let i = 0; i < orbits.length; ++i)
-			orbits[i] *= 1.0 / maxPos;
+			orbits[i] *= 1.0 / avgPos;
 
 
 		let vbo = this.gl.createBuffer();
@@ -253,7 +262,7 @@ class App {
 		this.camera.aspect = this.canvas.width / this.canvas.height;
 		this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 
-		GLM.mat4.perspective(this.camera.projMat, this.camera.fov, this.camera.aspect, 0.1, 1000);
+		GLM.mat4.perspective(this.camera.projMat, this.camera.fov, this.camera.aspect, 0.1, 10000);
 	}
 
 }

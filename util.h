@@ -7,7 +7,7 @@
 
 void read_input(int *N, Body **bodies, Body **bodies_new) {
 	std::ifstream in_file;
-    in_file.open("data/input.txt");
+    in_file.open("data/input_gen.txt");
 
     in_file >> *N;
 

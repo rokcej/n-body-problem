@@ -7,8 +7,8 @@
 #include "body.h"
 #include "util.h"
 
-#define ITERS 10000000
-#define DELTA_T 1.0
+#define ITERS 10000
+#define DELTA_T 100000.0
 #define FRAMES 2000
 
 int main(int argc, char* argv[])
