@@ -1,7 +1,7 @@
 import random
 import math
 
-num_bodies = 256
+num_bodies = 512
 
 with open("data/input.txt", "w") as f:
 	f.write(f"{num_bodies}\n")

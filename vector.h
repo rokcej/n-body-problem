@@ -19,7 +19,7 @@ struct Vector
         this->z = z;
     }
 
-    Vector operator+(const Vector &v2)
+    Vector operator+(const Vector &v2) const
     {
         return Vector(x + v2.x, y + v2.y, z + v2.z);
     }
@@ -33,17 +33,26 @@ struct Vector
         return *this;
     }
 
-    Vector operator-(const Vector &v2)
+    Vector operator-(const Vector &v2) const
     {
         return Vector(x - v2.x, y - v2.y, z - v2.z);
     }
 
-    Vector operator*(double s)
+    Vector operator*(double s) const
     {
         return Vector(s * x, s * y, s * z);
     }
 
-    Vector operator/(double s)
+    Vector& operator*=(double s)
+    {
+        this->x *= s;
+        this->y *= s;
+        this->z *= s;
+
+        return *this;
+    }
+
+    Vector operator/(double s) const
     {
         return Vector(x / s, y / s, z / s);
     }
