@@ -19,7 +19,12 @@ sbatch --wait N_body_openmp.sh
 module load mpi
 export OMPI_MCA_btl_openib_allow_ib=1
 mpic++ -O2 N_body_mpi.cpp -o N_body_mpi
-srun --ntasks=16 --nodes=1 --time=10:00 --reservation=fri --mpi=pmix N_body_mpi
+srun --ntasks=16 --nodes=1 --time=10:00 --mpi=pmix N_body_mpi
+
+module load mpi
+export OMPI_MCA_btl_openib_allow_ib=1
+mpic++ -O2 N_body_mpi_bh.cpp -o N_body_mpi_bh
+srun --ntasks=16 --nodes=1 --time=10:00 --mpi=pmix N_body_mpi_bh
 ```
 
 

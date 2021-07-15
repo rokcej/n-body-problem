@@ -124,16 +124,12 @@ int main(int argc, char* argv[])
             }
         }
 
-        Body* tmp = my_bodies_new;
-        my_bodies_new = my_bodies;
-        my_bodies = tmp;
+        Body* tmp = bodies_new;
+        bodies_new = bodies;
+        bodies = tmp;
 
         MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    MPI_Gather(my_bodies, m, type_body, 
-			   bodies, m, type_body, 
-			   0, MPI_COMM_WORLD);
 
     auto time_end = std::chrono::steady_clock::now();
     double time = std::chrono::duration<double>(time_end - time_start).count();
