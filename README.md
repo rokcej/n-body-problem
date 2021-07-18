@@ -18,13 +18,13 @@ sbatch --wait N_body_openmp.sh
 ```bash
 module load mpi
 export OMPI_MCA_btl_openib_allow_ib=1
-
+# Basic version
 mpic++ -O2 N_body_mpi.cpp -o N_body_mpi
 srun --ntasks=64 --nodes=1 --time=10:00 --constraint=AMD --mpi=pmix N_body_mpi
-
+# 3rd Newton's law version
 mpic++ -O2 N_body_mpi_newton.cpp -o N_body_mpi_newton
 srun --ntasks=64 --nodes=1 --time=10:00 --constraint=AMD --mpi=pmix N_body_mpi_newton
-
+# Barnes-Hut version
 mpic++ -O2 N_body_mpi_bh.cpp -o N_body_mpi_bh
 srun --ntasks=64 --nodes=1 --time=10:00 --constraint=AMD --mpi=pmix N_body_mpi_bh
 ```
@@ -77,9 +77,15 @@ MPI BH:		5.785979s
 
 N=8192, ITERS=1000
 NODES=1, TASKS=64
-MPI:		31.589076s, 31.544488s
-MPI Newton:	21.946689s, 21.884060s
-MPI BH:		16.332684s, 16.073598s
+MPI:		31.550425s, 31.589076s, 31.544488s
+MPI Newton:	21.857179s, 21.946689s, 21.884060s
+	Compute time: 17.677937s (80.9%)
+	Comm time:    3.484617s (15.9%)
+MPI BH:		16.155551s, 16.332684s, 16.073598s
+	Build time:   6.788846s (42.0%)
+	Compute time: 3.808267s (23.6%)
+	Dealloc time: 3.048536s (18.9%)
+	Comm time:    2.375776s (14.7%)
 
 N=16384, ITERS=1000
 NODES=1, TASKS=64
