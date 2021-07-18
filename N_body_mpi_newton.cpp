@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
         log = new Vector[N * FRAMES * 2];
 
         if (N % procs != 0) {
-            printf("Number of objects has to be divisible by the number of tasks\n");
+            printf("N * (N - 1) / 2 has to be divisible by the number of tasks\n");
         }
     }
 
@@ -72,6 +72,10 @@ int main(int argc, char* argv[])
     }
 
     MPI_Bcast(bodies, N, type_body, 0, MPI_COMM_WORLD);
+
+    // Instead of copying mass each iteration
+    for (int i = 0; i < N; ++i)
+        bodies_new[i].m = bodies[i].m;
 
     auto time_start = std::chrono::steady_clock::now();
     double compute_time = 0.0;

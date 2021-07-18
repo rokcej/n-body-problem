@@ -81,6 +81,10 @@ int main(int argc, char* argv[])
 				my_bodies, m, type_body, 
 				0, MPI_COMM_WORLD);
 
+    // Instead of copying mass each iteration
+    for (int i = 0; i < m; ++i)
+        my_bodies_new[i].m = my_bodies[i].m;
+
     auto time_start = std::chrono::steady_clock::now();
 
     int frame = 0;
