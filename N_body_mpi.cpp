@@ -11,9 +11,9 @@
 #include "body.h"
 #include "util.h"
 
-#define ITERS 10000
+#define ITERS 1000
 #define DELTA_T 100000.0
-#define FRAMES 2000
+#define FRAMES 200
 
 void get_accel_sums(std::vector<Vector> &my_accel_sums, Body* my_bodies, Body* my_bodies_othr, int m, int offset)
 {

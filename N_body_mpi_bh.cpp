@@ -12,9 +12,9 @@
 #include "body.h"
 #include "util.h"
 
-#define ITERS 10000
+#define ITERS 1000
 #define DELTA_T 100000.0
-#define FRAMES 2000
+#define FRAMES 200
 
 #define THETA 1.0
 

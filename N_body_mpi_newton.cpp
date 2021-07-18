@@ -12,9 +12,9 @@
 #include "body.h"
 #include "util.h"
 
-#define ITERS 10000
+#define ITERS 1000
 #define DELTA_T 100000.0
-#define FRAMES 2000
+#define FRAMES 200
 
 #define THETA 1.0
 
@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int m = N * (N - 1) / (2 * procs);
+    int m = (long long)N * (N - 1LL) / (2LL * procs); // Long long to prevent overflow
     forces = new Vector[N];
     forces_sum = new Vector[N];
     if (myid != 0) {
