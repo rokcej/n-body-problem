@@ -38,6 +38,15 @@ struct Vector
         return Vector(x - v2.x, y - v2.y, z - v2.z);
     }
 
+    Vector& operator-=(const Vector &v2)
+    {
+        this->x -= v2.x;
+        this->y -= v2.y;
+        this->z -= v2.z;
+
+        return *this;
+    }
+
     Vector operator*(double s) const
     {
         return Vector(s * x, s * y, s * z);

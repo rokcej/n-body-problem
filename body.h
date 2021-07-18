@@ -23,7 +23,10 @@ struct Body
     // Force towards body b
     Vector force(const Body &b)
     {
-        return this->acceleration(b) * this->m;
+        Vector diff = this->pos - b.pos;
+        double dist = diff.length() + EPS;
+
+        return diff * (this->m * b.m / (dist * dist * dist) * -KAPPA);
     }
 
     // Acceleration towards body b

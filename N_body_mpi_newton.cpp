@@ -18,12 +18,15 @@
 
 #define THETA 1.0
 
+
 int main(int argc, char* argv[])
 {
     int     myid, procs;
     int     N;
    	Body*   bodies = nullptr;
     Body*   bodies_new = nullptr;
+    Vector* forces = nullptr;
+    Vector* forces_sum = nullptr;
     Vector* log = nullptr;
 
     // Init
@@ -60,7 +63,9 @@ int main(int argc, char* argv[])
 
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int m = N / procs;
+    int m = N * (N - 1) / (2 * procs);
+    forces = new Vector[N];
+    forces_sum = new Vector[N];
     if (myid != 0) {
         bodies = new Body[N];
         bodies_new = new Body[N];
@@ -69,53 +74,44 @@ int main(int argc, char* argv[])
     MPI_Bcast(bodies, N, type_body, 0, MPI_COMM_WORLD);
 
     auto time_start = std::chrono::steady_clock::now();
-    double build_time = 0.0;
     double compute_time = 0.0;
-    double dealloc_time = 0.0;
     double comm_time = 0.0;
 
     int frame = 0;
     for (int iter = 0; iter < ITERS; ++iter)
     {
-        auto build_start = std::chrono::steady_clock::now();
-
-        Vector pos_min = Vector(bodies[0].pos);
-        Vector pos_max = Vector(pos_min);
-        for (int i = 1; i < N; ++i) {
-            if (bodies[i].pos.x < pos_min.x) pos_min.x = bodies[i].pos.x;
-            else if (bodies[i].pos.x > pos_max.x) pos_max.x = bodies[i].pos.x;
-            if (bodies[i].pos.y < pos_min.y) pos_min.y = bodies[i].pos.y;
-            else if (bodies[i].pos.y > pos_max.y) pos_max.y = bodies[i].pos.y;
-            if (bodies[i].pos.z < pos_min.z) pos_min.z = bodies[i].pos.z;
-            else if (bodies[i].pos.z > pos_max.z) pos_max.z = bodies[i].pos.z;
-        }
-        
-        Octant *root = new Octant(pos_min, pos_max);
         for (int i = 0; i < N; ++i)
-            root->insert(&(bodies[i]));
-        root->compute_mass_distribution();
+            forces[i] = Vector(0.0, 0.0, 0.0);
 
         auto compute_start = std::chrono::steady_clock::now();
-        build_time += std::chrono::duration<double>(compute_start - build_start).count();
 
-        for (int i = myid * m; i < (myid + 1) * m; ++i) {
-            Vector accel_sum = root->get_acceleration(&(bodies[i]), THETA);
+        // N * (N - 1) / 2 = index
+        int i0 = myid * m;
+        int a = (int)((1.0 + sqrt(1.0 + 8.0 * i0)) / 2.0);
+        int b = i0 - a * (a - 1) / 2;
+        for (int i = 0; i < m; ++i) {
+            Vector force = bodies[a].force(bodies[b]);
+            forces[a] += force;
+            forces[b] -= force;
 
+            if (++b >= a) {
+                b = 0;
+                ++a;
+            }
+        }
+
+        auto comm_start = std::chrono::steady_clock::now();
+        compute_time += std::chrono::duration<double>(comm_start - compute_start).count();
+
+        MPI_Allreduce(forces, forces_sum, N * 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        comm_time += std::chrono::duration<double>(std::chrono::steady_clock::now() - comm_start).count();
+
+        for (int i = 0; i < N; ++i) {
+            Vector accel_sum = forces_sum[i] / bodies[i].m;
             bodies_new[i].pos = bodies[i].pos + bodies[i].vel * DELTA_T + accel_sum * (0.5 * DELTA_T * DELTA_T);
             bodies_new[i].vel = bodies[i].vel + accel_sum * DELTA_T;
         }
-
-        auto dealloc_start = std::chrono::steady_clock::now();
-        compute_time += std::chrono::duration<double>(dealloc_start - compute_start).count();
-
-        delete root;
-
-        auto comm_start = std::chrono::steady_clock::now();
-        dealloc_time += std::chrono::duration<double>(comm_start - dealloc_start).count();
-
-        MPI_Allgather(MPI_IN_PLACE, m, type_body, bodies_new, m, type_body, MPI_COMM_WORLD);
-
-        comm_time += std::chrono::duration<double>(std::chrono::steady_clock::now() - comm_start).count();
 
         if (myid == 0) {
             if (iter % (ITERS / FRAMES) == 0) {
@@ -143,9 +139,7 @@ int main(int argc, char* argv[])
 
         printf("Required time: %lfs\n", time);
         printf("---------------\n");
-        printf("Build time:   %lfs (%.1lf\%)\n", build_time, 100.0 * build_time / time);
         printf("Compute time: %lfs (%.1lf\%)\n", compute_time, 100.0 * compute_time / time);
-        printf("Dealloc time: %lfs (%.1lf\%)\n", dealloc_time, 100.0 * dealloc_time / time);
         printf("Comm time:    %lfs (%.1lf\%)\n", comm_time, 100.0 * comm_time / time);
     }
 

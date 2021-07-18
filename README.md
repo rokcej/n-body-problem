@@ -35,6 +35,14 @@ srun --ntasks=16 --nodes=1 --time=10:00 --mpi=pmix N_body_mpi_bh
 * ["Galaxy" simulation](https://mb0484.github.io/N-body/visualization/?data=galaxy.txt)
 
 
+## Updated results
+
+N=8192, ITERS=1000
+NODES=1, TASKS=64
+MPI:		31.589076s
+MPI Newton:	21.946689s
+MPI BH:		16.332684s
+
 ## Results
 
 N=256, ITERS=10000
