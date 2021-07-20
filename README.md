@@ -32,13 +32,14 @@ srun --ntasks=64 --nodes=1 --time=10:00 --constraint=AMD --mpi=pmix N_body_mpi_b
 
 ## Examples
 
-* [Three body simulation](https://mb0484.github.io/N-body/visualization/?data=three.txt)
-* [Solar system simulation](https://mb0484.github.io/N-body/visualization/?data=solar.txt)
-* ["Galaxy" simulation](https://mb0484.github.io/N-body/visualization/?data=galaxy.txt)
+* [Three body simulation](https://rokcej.github.io/n-body-problem/visualization/?data=three.txt)
+* [Solar system simulation](https://rokcej.github.io/n-body-problem/visualization/?data=solar.txt)
+* ["Galaxy" simulation](https://rokcej.github.io/n-body-problem/visualization/?data=galaxy.txt)
 
 
 ## Updated results
 
+```
 N=256, ITERS=1000
 NODES=1, TASKS=64
 MPI:		0.293479s
@@ -133,10 +134,12 @@ MPI BH: 	24.606230s, 25.941518s
 	Compute time: 8.440754s (34.3%), 8.851621s (34.1%)
 	Dealloc time: 4.168720s (16.9%), 4.409707s (17.0%)
 	Comm time:    3.426208s (13.9%), 3.323741s (12.8%)
+```
 
 
 ## Results
 
+```
 N=256, ITERS=10000
 Seq: 10.838952s
 OpenMP:
@@ -169,6 +172,7 @@ MPI:
 	64: 10.945437s (15.9x speedup)
 	32: 13.129810s 
 	16: 20.237591s
+```
 
 
 ## Specification
