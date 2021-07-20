@@ -4,12 +4,17 @@
 
 * Sequential
 ```bash
+# (Sequential) Basic version
 g++ -O2 N_body.cpp -o N_body
-srun --ntasks=1 --nodes=1 --time=10:00 --reservation=fri N_body
+srun --ntasks=1 --nodes=1 --time=10:00 N_body
+# (Sequential) Barnes-hut version
+g++ -O2 N_body_bh.cpp -o N_body_bh
+srun --ntasks=1 --nodes=1 --time=10:00 N_body_bh
 ```
 
 * OpenMP
 ```bash
+# OpenMP version
 g++ -O2 -fopenmp N_body_openmp.cpp -o N_body_openmp
 sbatch --wait N_body_openmp.sh
 ```
